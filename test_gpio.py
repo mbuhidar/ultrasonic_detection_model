@@ -66,15 +66,9 @@ def test_gpio_basic():
         print("\n3. Testing Sensor Trigger Sequence...")
         print("-" * 60)
         
-        # Setup trigger pins
-        GPIO.setup(16, GPIO.OUT)
-        GPIO.setup(22, GPIO.OUT)
+        # Pins already set up from previous tests, just set initial states
         GPIO.output(16, GPIO.HIGH)
         GPIO.output(22, GPIO.HIGH)
-        
-        # Setup input pins
-        GPIO.setup(12, GPIO.IN)
-        GPIO.setup(18, GPIO.IN)
         
         # Test Sensor 1
         print("\n   Testing Sensor 1 (Pin 16 trigger, Pin 12 input):")

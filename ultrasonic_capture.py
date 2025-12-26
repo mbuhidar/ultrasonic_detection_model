@@ -45,6 +45,7 @@ class MB1300Sensor:
     PULSE_WIDTH_TO_INCH = 147  # 147 μs per inch
     MAX_PULSE_WIDTH_US = 50000  # 50ms timeout
     MIN_PULSE_WIDTH_US = 100  # Minimum valid pulse
+    SENSOR_WARMUP_MS = 250  # Sensor needs 250ms after power-on
     
     def __init__(self, config: SensorConfig):
         self.config = config
@@ -78,7 +79,10 @@ class MB1300Sensor:
         timeout_start = time.time()
         timeout_seconds = self.MAX_PULSE_WIDTH_US / 1_000_000
         
-        # Wait for pulse to go HIGH
+        # Check initial state
+        initial_state = GPIO.input(self.config.pw_pin)
+        
+        # Wait for pulse to go HIGH (if starting LOW)
         while GPIO.input(self.config.pw_pin) == GPIO.LOW:
             if time.time() - timeout_start > timeout_seconds:
                 return None
@@ -163,6 +167,15 @@ class DualSensorController:
         self.sensor2.setup_gpio()
         
         print(f"GPIO initialized for {self.sensor1.config.name} and {self.sensor2.config.name}")
+        
+        # Wait for sensors to warm up (MB1300 needs 250ms after power-on)
+        print("Waiting for sensors to warm up (250ms)...")
+        time.sleep(0.25)
+        
+        # Check sensor states
+        print(f"Sensor 1 PW pin state: {GPIO.input(self.sensor1.config.pw_pin)} ({'HIGH' if GPIO.input(self.sensor1.config.pw_pin) else 'LOW'})")
+        print(f"Sensor 2 PW pin state: {GPIO.input(self.sensor2.config.pw_pin)} ({'HIGH' if GPIO.input(self.sensor2.config.pw_pin) else 'LOW'})")
+        print("Ready to capture data!")
         
     def cleanup(self):
         """Clean up GPIO resources."""
