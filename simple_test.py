@@ -18,18 +18,18 @@ GPIO.setwarnings(False)
 GPIO.setup(TRIGGER_PIN, GPIO.OUT)
 GPIO.setup(PW_PIN, GPIO.IN)
 
-# Set trigger HIGH (idle)
-GPIO.output(TRIGGER_PIN, GPIO.HIGH)
+# Set trigger LOW (stopped)
+GPIO.output(TRIGGER_PIN, GPIO.LOW)
 time.sleep(0.5)
 
 # Check if sensor is powered
 print(f"PW pin initial state: {GPIO.input(PW_PIN)} (should be 1)")
 
-# Send trigger
+# Send trigger (pulse HIGH)
 print("Sending trigger...")
-GPIO.output(TRIGGER_PIN, GPIO.LOW)
-time.sleep(0.00003)  # 30 microseconds
 GPIO.output(TRIGGER_PIN, GPIO.HIGH)
+time.sleep(0.00003)  # 30 microseconds
+GPIO.output(TRIGGER_PIN, GPIO.LOW)
 
 # Watch for any changes
 print("Watching for 200ms...")

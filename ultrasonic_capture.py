@@ -59,17 +59,18 @@ class MB1300Sensor:
         """Initialize GPIO pins for this sensor."""
         # Trigger pin as output
         GPIO.setup(self.config.trigger_pin, GPIO.OUT)
-        GPIO.output(self.config.trigger_pin, GPIO.HIGH)  # Idle state is HIGH
+        GPIO.output(self.config.trigger_pin, GPIO.LOW)  # Hold LOW to stop ranging
         
         # Pulse width pin as input
         GPIO.setup(self.config.pw_pin, GPIO.IN)
         
     def trigger(self):
         """Send trigger pulse to start ranging."""
-        # Pull RX low for 20+ microseconds
-        GPIO.output(self.config.trigger_pin, GPIO.LOW)
-        time.sleep(self.TRIGGER_DURATION_US / 1_000_000)
+        # RX is normally held LOW (stopped)
+        # Pulse HIGH for 20+ microseconds to trigger ranging
         GPIO.output(self.config.trigger_pin, GPIO.HIGH)
+        time.sleep(self.TRIGGER_DURATION_US / 1_000_000)
+        GPIO.output(self.config.trigger_pin, GPIO.LOW)
         
         # Small delay after trigger for sensor to start responding
         time.sleep(0.001)  # 1ms delay
