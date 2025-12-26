@@ -146,19 +146,19 @@ For RK3588S GPIO chips:
 
 ## Connection Diagram
 ```
-Orange Pi 5                    MaxBotix MB1300 Sensor 1
------------                    ------------------------
+Orange Pi 5                    MaxBotix MB1300AE Sensor 1
+-----------                    --------------------------
 Pin 4  (5V)      ---------->   Pin 6 (+5V)
 Pin 6  (GND)     ---------->   Pin 7 (GND)
-Pin 12 (GPIO4_A4) <---------   Pin 2 (PW - Pulse Width)
-Pin 16 (GPIO4_B0) --------->   Pin 4 (RX - Trigger)
+Pin 8  (UART_TX) <----------   Pin 5 (TX - Serial Out)
+Pin 16 (GPIO136) ---------->   Pin 4 (RX - Trigger)
 
-Orange Pi 5                    MaxBotix MB1300 Sensor 2
------------                    ------------------------
+Orange Pi 5                    MaxBotix MB1300AE Sensor 2
+-----------                    --------------------------
 Pin 2  (5V)      ---------->   Pin 6 (+5V)
 Pin 9  (GND)     ---------->   Pin 7 (GND)
-Pin 18 (GPIO4_B1) <---------   Pin 2 (PW - Pulse Width)
-Pin 22 (GPIO4_B2) --------->   Pin 4 (RX - Trigger)
+Pin 10 (UART_RX) <----------   Pin 5 (TX - Serial Out)
+Pin 22 (GPIO138) ---------->   Pin 4 (RX - Trigger)
 ```
 
 ### Pins Used Summary
@@ -194,16 +194,19 @@ If you need to connect additional sensors or devices, these GPIO pins are availa
 **Additional Ground Pins:**
 - Pin 14, 20, 25
 
-## Pulse Width Output Specifications
-- **Scaling**: 147 μs per inch
-- **Example**: 1000 μs pulse = 6.8 inches (1000/147)
-- **Range**: ~294 μs (2 inches) to ~44,100 μs (300 inches)
-- **Update Rate**: 49 ms typical (20 Hz)
+## Serial Output Specifications
+- **Baud Rate**: 9600, 8 data bits, no parity, 1 stop bit (8N1)
+- **Format**: Rxxx\r where xxx is distance in millimeters
+- **Example**: "R1234\r" = 1234mm = 48.6 inches
+- **Update Rate**: ~10 Hz (10 readings per second)
+- **Range Output**: 300mm (12 in) to 7650mm (300 in)
 
 ## Triggering
-- Hold RX pin LOW for at least 20 μs to trigger a ranging cycle
-- After trigger, sensor will output 10 pulses on PW pin representing 10 consecutive measurements
-- Each sensor will trigger the other in an alternating pattern
+- RX pin (Pin 4) is internally pulled HIGH
+- Sensor ranges continuously when RX is HIGH or floating
+- **Hold RX LOW to stop ranging**
+- **Pulse RX HIGH for 20+ μs to trigger a single reading**
+- After trigger, sensor outputs distance via serial on Pin 5 (TX)
 - System runs in continuous loop until manually stopped (Ctrl+C)
 
 ## Notes

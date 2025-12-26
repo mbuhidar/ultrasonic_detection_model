@@ -8,6 +8,7 @@ import time
 import threading
 import csv
 import os
+import serial
 from dataclasses import dataclass
 from typing import List, Callable, Optional
 from collections import deque
@@ -24,8 +25,8 @@ except ImportError:
 class SensorConfig:
     """Configuration for a single MB1300 sensor."""
     name: str
-    pw_pin: int  # Pulse Width input pin
-    trigger_pin: int  # Trigger output pin
+    tx_pin: int  # Serial TX output pin (connects to sensor Pin 5)
+    trigger_pin: int  # Trigger output pin (connects to sensor Pin 4 RX)
     
 
 @dataclass
@@ -39,13 +40,12 @@ class PulseWidthMeasurement:
 
 
 class MB1300Sensor:
-    """Controller for MaxBotix MB1300 ultrasonic sensor."""
+    """Controller for MaxBotix MB1300AE ultrasonic sensor using serial output."""
     
-    TRIGGER_DURATION_US = 25  # Microseconds to hold trigger low
-    PULSE_WIDTH_TO_INCH = 147  # 147 μs per inch
-    MAX_PULSE_WIDTH_US = 50000  # 50ms timeout
-    MIN_PULSE_WIDTH_US = 100  # Minimum valid pulse
+    TRIGGER_DURATION_US = 25  # Microseconds to hold trigger high
     SENSOR_WARMUP_MS = 250  # Sensor needs 250ms after power-on
+    BAUD_RATE = 9600  # Serial baud rate for MB1300
+    SERIAL_TIMEOUT = 0.1  # Serial read timeout in seconds
     
     def __init__(self, config: SensorConfig):
         self.config = config
@@ -54,15 +54,15 @@ class MB1300Sensor:
         self.pulse_count = 0
         self.callback: Optional[Callable] = None
         self._lock = threading.Lock()
+        self.serial_port = None
         
     def setup_gpio(self):
         """Initialize GPIO pins for this sensor."""
-        # Trigger pin as output
+        # Trigger pin as output (RX on sensor)
         GPIO.setup(self.config.trigger_pin, GPIO.OUT)
         GPIO.output(self.config.trigger_pin, GPIO.LOW)  # Hold LOW to stop ranging
         
-        # Pulse width pin as input
-        GPIO.setup(self.config.pw_pin, GPIO.IN)
+        # TX pin will be used for serial communication (not GPIO)
         
     def trigger(self):
         """Send trigger pulse to start ranging."""
@@ -75,66 +75,69 @@ class MB1300Sensor:
         # Small delay after trigger for sensor to start responding
         time.sleep(0.001)  # 1ms delay
         
-    def measure_pulse_width(self) -> Optional[float]:
+    def setup_serial(self, uart_device: str):
+        """Setup serial connection for reading sensor data.
+        
+        Args:
+            uart_device: UART device path (e.g., '/dev/ttyS3' for UART3)
         """
-        Measure a single pulse width in microseconds.
-        Returns None if timeout or invalid measurement.
-        
-        MB1300 PW pin behavior:
-        - Idle state: HIGH
-        - After trigger: outputs 10 pulses (HIGH = distance measurement)
-        - Between pulses: brief LOW periods
+        try:
+            self.serial_port = serial.Serial(
+                port=uart_device,
+                baudrate=self.BAUD_RATE,
+                timeout=self.SERIAL_TIMEOUT,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE
+            )
+            return True
+        except Exception as e:
+            print(f"Error opening serial port {uart_device}: {e}")
+            return False
+    
+    def read_serial_measurement(self) -> Optional[float]:
         """
-        timeout_start = time.time()
-        timeout_seconds = self.MAX_PULSE_WIDTH_US / 1_000_000
-        
-        # Wait for pulse to start (pin goes HIGH after being LOW)
-        # First, wait for LOW (gap between pulses or initial state)
-        wait_low_start = time.time()
-        while GPIO.input(self.config.pw_pin) == GPIO.HIGH:
-            if time.time() - wait_low_start > timeout_seconds:
-                return None
-        
-        # Now wait for HIGH (start of actual pulse)
-        while GPIO.input(self.config.pw_pin) == GPIO.LOW:
-            if time.time() - timeout_start > timeout_seconds:
-                return None
-                
-        # Record start of HIGH pulse
-        pulse_start = time.time()
-        
-        # Wait for pulse to end (goes back to LOW)
-        while GPIO.input(self.config.pw_pin) == GPIO.HIGH:
-            if time.time() - pulse_start > timeout_seconds:
-                return None
-                
-        # Calculate pulse width
-        pulse_end = time.time()
-        pulse_width_us = (pulse_end - pulse_start) * 1_000_000
-        
-        # Validate measurement
-        if pulse_width_us < self.MIN_PULSE_WIDTH_US:
+        Read one distance measurement from serial output.
+        MB1300 outputs format: Rxxx\r where xxx is distance in mm.
+        Returns distance in inches, or None if error.
+        """
+        if not self.serial_port or not self.serial_port.is_open:
             return None
             
-        return pulse_width_us
+        try:
+            # Read until we get 'R' start character
+            line = self.serial_port.read_until(b'\r')
+            
+            if len(line) > 0 and line[0] == ord('R'):
+                # Parse distance in mm
+                distance_str = line[1:-1].decode('ascii').strip()
+                distance_mm = int(distance_str)
+                distance_inches = distance_mm / 25.4  # Convert mm to inches
+                return distance_inches
+            return None
+            
+        except Exception as e:
+            return None
     
     def capture_pulse_series(self, num_pulses: int = 10) -> List[PulseWidthMeasurement]:
         """
-        Capture a series of pulse width measurements after trigger.
-        MB1300 outputs 10 pulses per trigger event.
+        Capture a series of measurements after trigger.
+        MB1300 outputs readings continuously after trigger.
         """
         measurements = []
         
         for pulse_num in range(1, num_pulses + 1):
-            pulse_width_us = self.measure_pulse_width()
+            distance_inches = self.read_serial_measurement()
             
-            if pulse_width_us is not None:
-                distance_inches = pulse_width_us / self.PULSE_WIDTH_TO_INCH
+            if distance_inches is not None:
+                # For MB1300AE serial, we don't have pulse width
+                # Store distance_mm * 58 as pseudo pulse width for compatibility
+                pseudo_pulse_width = distance_inches * 25.4 * 58  # mm * 58us/cm
                 
                 measurement = PulseWidthMeasurement(
                     sensor_name=self.config.name,
                     pulse_number=pulse_num,
-                    pulse_width_us=pulse_width_us,
+                    pulse_width_us=pseudo_pulse_width,
                     distance_inches=distance_inches,
                     timestamp=time.time()
                 )
@@ -171,8 +174,13 @@ class DualSensorController:
         self.capture_thread: Optional[threading.Thread] = None
         self.cycle_count = 0
         
-    def setup(self):
-        """Initialize GPIO mode and setup both sensors."""
+    def setup(self, uart1_device: str = '/dev/ttyS3', uart2_device: str = '/dev/ttyS4'):
+        """Initialize GPIO mode and setup both sensors.
+        
+        Args:
+            uart1_device: UART device for sensor 1 (default /dev/ttyS3)
+            uart2_device: UART device for sensor 2 (default /dev/ttyS4)
+        """
         GPIO.setmode(GPIO.BOARD)  # Use physical pin numbering
         GPIO.setwarnings(False)
         
@@ -181,13 +189,17 @@ class DualSensorController:
         
         print(f"GPIO initialized for {self.sensor1.config.name} and {self.sensor2.config.name}")
         
+        # Setup serial ports
+        print(f"Setting up serial ports...")
+        if not self.sensor1.setup_serial(uart1_device):
+            print(f"Warning: Could not open {uart1_device} for {self.sensor1.config.name}")
+        if not self.sensor2.setup_serial(uart2_device):
+            print(f"Warning: Could not open {uart2_device} for {self.sensor2.config.name}")
+        
         # Wait for sensors to warm up (MB1300 needs 250ms after power-on)
         print("Waiting for sensors to warm up (250ms)...")
         time.sleep(0.25)
         
-        # Check sensor states
-        print(f"Sensor 1 PW pin state: {GPIO.input(self.sensor1.config.pw_pin)} ({'HIGH' if GPIO.input(self.sensor1.config.pw_pin) else 'LOW'})")
-        print(f"Sensor 2 PW pin state: {GPIO.input(self.sensor2.config.pw_pin)} ({'HIGH' if GPIO.input(self.sensor2.config.pw_pin) else 'LOW'})")
         print("Ready to capture data!")
         
     def cleanup(self):
@@ -333,16 +345,17 @@ def main():
     """Example usage of the dual sensor controller."""
     
     # Define sensor configurations based on pinout
+    # MB1300AE uses serial output (Pin 5 TX)
     sensor1_config = SensorConfig(
         name="Sensor_1",
-        pw_pin=12,      # Physical pin 12 (GPIO140)
-        trigger_pin=16  # Physical pin 16 (GPIO144)
+        tx_pin=8,       # Physical pin 8 (UART0_TX) - connects to sensor Pin 5
+        trigger_pin=16  # Physical pin 16 (GPIO136) - connects to sensor Pin 4
     )
     
     sensor2_config = SensorConfig(
         name="Sensor_2",
-        pw_pin=18,      # Physical pin 18 (GPIO145)
-        trigger_pin=22  # Physical pin 22 (GPIO146)
+        tx_pin=10,      # Physical pin 10 (UART0_RX) - connects to sensor Pin 5
+        trigger_pin=22  # Physical pin 22 (GPIO138) - connects to sensor Pin 4
     )
     
     # Create controller
