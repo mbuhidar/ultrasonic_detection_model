@@ -71,18 +71,30 @@ class MB1300Sensor:
         time.sleep(self.TRIGGER_DURATION_US / 1_000_000)
         GPIO.output(self.config.trigger_pin, GPIO.HIGH)
         
+        # Small delay after trigger for sensor to start responding
+        time.sleep(0.001)  # 1ms delay
+        
     def measure_pulse_width(self) -> Optional[float]:
         """
         Measure a single pulse width in microseconds.
         Returns None if timeout or invalid measurement.
+        
+        MB1300 PW pin behavior:
+        - Idle state: HIGH
+        - After trigger: outputs 10 pulses (HIGH = distance measurement)
+        - Between pulses: brief LOW periods
         """
         timeout_start = time.time()
         timeout_seconds = self.MAX_PULSE_WIDTH_US / 1_000_000
         
-        # Check initial state
-        initial_state = GPIO.input(self.config.pw_pin)
+        # Wait for pulse to start (pin goes HIGH after being LOW)
+        # First, wait for LOW (gap between pulses or initial state)
+        wait_low_start = time.time()
+        while GPIO.input(self.config.pw_pin) == GPIO.HIGH:
+            if time.time() - wait_low_start > timeout_seconds:
+                return None
         
-        # Wait for pulse to go HIGH (if starting LOW)
+        # Now wait for HIGH (start of actual pulse)
         while GPIO.input(self.config.pw_pin) == GPIO.LOW:
             if time.time() - timeout_start > timeout_seconds:
                 return None
@@ -90,7 +102,7 @@ class MB1300Sensor:
         # Record start of HIGH pulse
         pulse_start = time.time()
         
-        # Wait for pulse to go LOW
+        # Wait for pulse to end (goes back to LOW)
         while GPIO.input(self.config.pw_pin) == GPIO.HIGH:
             if time.time() - pulse_start > timeout_seconds:
                 return None
