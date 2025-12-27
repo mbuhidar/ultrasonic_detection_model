@@ -26,12 +26,12 @@
 | 13 | GPIO4_B3 | GPIO4_B3 | 139 | GPIO | I/O |
 | 14 | Ground | - | - | Ground | - |
 | 15 | GPIO4_A5 | GPIO4_A5 | 133 | GPIO, SPI4_MOSI | I/O |
-| 16 | GPIO4_B0 | GPIO4_B0 | 136 | GPIO, SPI4_CS0 | I/O |
+| 16 | UART4_RX_M0 | GPIO4_B0 | 136 | UART4 RX, GPIO, SPI4_CS0 | Input |
 | 17 | 3.3V Power | - | - | Power | - |
 | 18 | GPIO4_B1 | GPIO4_B1 | 137 | GPIO, SPI4_MISO | I/O |
 | 19 | SPI0_MOSI | GPIO1_B3 | 43 | SPI0 MOSI | Output |
 | 20 | Ground | - | - | Ground | - |
-| 21 | SPI0_MISO | GPIO1_B4 | 44 | SPI0 MISO | Input |
+| 21 | UART3_RX_M0 | GPIO1_B4 | 44 | UART3 RX, SPI0 MISO | Input |
 | 22 | GPIO4_B2 | GPIO4_B2 | 138 | GPIO, SPI4_CS1 | I/O |
 | 23 | SPI0_CLK | GPIO1_B1 | 41 | SPI0 CLK | Output |
 | 24 | SPI0_CS0 | GPIO1_B5 | 45 | SPI0 CS0 | Output |
@@ -59,6 +59,8 @@
 **Communication Interfaces:**
 - I2C3: Pin 3 (SDA), Pin 5 (SCL)
 - UART0: Pin 8 (TX), Pin 10 (RX)
+- UART3: Pin 21 (RX_M0) - **Used for Sensor 2**
+- UART4: Pin 16 (RX_M0) - **Used for Sensor 1**
 - SPI0: Pin 19 (MOSI), Pin 21 (MISO), Pin 23 (CLK), Pin 24 (CS0), Pin 26 (CS1)
 - SPI4 (alternate): Pin 12 (CLK), Pin 15 (MOSI), Pin 16 (CS0), Pin 18 (MISO), Pin 22 (CS1)
 - PWM1: Pin 7
@@ -74,12 +76,12 @@ I2C3_SDA  [3]  [4]  5V         ← Sensor 1 Power
 I2C3_SCL  [5]  [6]  GND        ← Sensor 1 Ground
     PWM1  [7]  [8]  UART0_TX
      GND  [9]  [10] UART0_RX   ← Sensor 2 Ground
-GPIO4_A3 [11]  [12] GPIO4_A4   ← Sensor 1 PW Input
+GPIO4_A3 [11]  [12] GPIO4_A4
 GPIO4_B3 [13]  [14] GND
-GPIO4_A5 [15]  [16] GPIO4_B0   ← Sensor 1 RX Trigger
-    3.3V [17]  [18] GPIO4_B1   ← Sensor 2 PW Input
+GPIO4_A5 [15]  [16] UART4_RX   ← Sensor 1 Serial Input
+    3.3V [17]  [18] GPIO4_B1
 SPI0_MOSI[19]  [20] GND
-SPI0_MISO[21]  [22] GPIO4_B2   ← Sensor 2 RX Trigger
+UART3_RX [21]  [22] GPIO4_B2   ← Sensor 2 Serial Input
  SPI0_CLK[23]  [24] SPI0_CS0
      GND [25]  [26] SPI0_CS1
 
@@ -118,47 +120,46 @@ For RK3588S GPIO chips:
 
 ## Sensor Wiring Configuration
 
-### Sensor 1 (MB1300 #1)
-| MB1300 Pin | Function | Orange Pi 5 Pin | GPIO Chip | GPIO# |
-|------------|----------|-----------------|-----------|-------|
-| Pin 1 (BW) | Leave Open | - | - | - |
-| Pin 2 (PW) | Pulse Width Output | Pin 12 | GPIO4_A4 | 132 |
-| Pin 3 (AN) | Analog Voltage | - | - | - |
-| Pin 4 (RX) | Trigger Input | Pin 16 | GPIO4_B0 | 136 |
-| Pin 5 (TX) | Serial Output | - | - | - |
-| Pin 6 (+5V)| Power Supply | Pin 4 | 5V Power | - |
-| Pin 7 (GND)| Ground | Pin 6 | Ground | - |
+### Sensor 1 (MB1300AE #1)
+| MB1300 Pin | Function | Orange Pi 5 Pin | UART/GPIO |
+|------------|----------|-----------------|-----------|
+| Pin 1 (BW) | Leave Open | - | Must be floating for serial |
+| Pin 2 (AN) | Analog Envelope | - | Not Used (requires ADC) |
+| Pin 3 (AN) | Analog Voltage | - | Not Used (requires ADC) |
+| Pin 4 (RX) | Trigger Input | Pin 11 or 13 | GPIO (optional) |
+| Pin 5 (TX) | Serial Output | Pin 16 | **UART4_RX_M0** |
+| Pin 6 (+5V)| Power Supply | Pin 4 | 5V Power |
+| Pin 7 (GND)| Ground | Pin 6 | Ground |
 
-**Note**: The GPIO numbers shown (132, 136) are the standard RK3588S chip GPIO numbers. The OPi.GPIO library may use physical BOARD pin numbers (12, 16) when GPIO.setmode(GPIO.BOARD) is used.
-
-### Sensor 2 (MB1300 #2)
-| MB1300 Pin | Function | Orange Pi 5 Pin | GPIO Chip | GPIO# |
-|------------|----------|-----------------|-----------|-------|
-| Pin 1 (BW) | Leave Open | - | - | - |
-| Pin 2 (PW) | Pulse Width Output | Pin 18 | GPIO4_B1 | 137 |
-| Pin 3 (AN) | Analog Voltage | - | - | - |
-| Pin 4 (RX) | Trigger Input | Pin 22 | GPIO4_B2 | 138 |
-| Pin 5 (TX) | Serial Output | - | - | - |
-| Pin 6 (+5V)| Power Supply | Pin 2 | 5V Power | - |
-| Pin 7 (GND)| Ground | Pin 9 | Ground | - |
-
-**Note**: The GPIO numbers shown (137, 138) are the standard RK3588S chip GPIO numbers. The OPi.GPIO library uses physical BOARD pin numbers in this project.
+### Sensor 2 (MB1300AE #2)
+| MB1300 Pin | Function | Orange Pi 5 Pin | UART/GPIO |
+|------------|----------|-----------------|-----------|
+| Pin 1 (BW) | Leave Open | - | Must be floating for serial |
+| Pin 2 (AN) | Analog Envelope | - | Not Used (requires ADC) |
+| Pin 3 (AN) | Analog Voltage | - | Not Used (requires ADC) |
+| Pin 4 (RX) | Trigger Input | Pin 22 | GPIO (optional) |
+| Pin 5 (TX) | Serial Output | Pin 21 | **UART3_RX_M0** |
+| Pin 6 (+5V)| Power Supply | Pin 2 | 5V Power |
+| Pin 7 (GND)| Ground | Pin 9 | Ground |
 
 ## Connection Diagram
 ```
 Orange Pi 5                    MaxBotix MB1300AE Sensor 1
 -----------                    --------------------------
-Pin 4  (5V)      ---------->   Pin 6 (+5V)
-Pin 6  (GND)     ---------->   Pin 7 (GND)
-Pin 8  (UART_TX) <----------   Pin 5 (TX - Serial Out)
-Pin 16 (GPIO136) ---------->   Pin 4 (RX - Trigger)
+Pin 4  (5V)       ---------->  Pin 6 (+5V)
+Pin 6  (GND)      ---------->  Pin 7 (GND)
+Pin 16 (UART4_RX) <----------  Pin 5 (TX - Serial Out)
+Pin 1 (BW)        ---------->  LEAVE OPEN (not connected)
 
 Orange Pi 5                    MaxBotix MB1300AE Sensor 2
 -----------                    --------------------------
-Pin 2  (5V)      ---------->   Pin 6 (+5V)
-Pin 9  (GND)     ---------->   Pin 7 (GND)
-Pin 10 (UART_RX) <----------   Pin 5 (TX - Serial Out)
-Pin 22 (GPIO138) ---------->   Pin 4 (RX - Trigger)
+Pin 2  (5V)       ---------->  Pin 6 (+5V)
+Pin 9  (GND)      ---------->  Pin 7 (GND)
+Pin 21 (UART3_RX) <----------  Pin 5 (TX - Serial Out)
+Pin 1 (BW)        ---------->  LEAVE OPEN (not connected)
+
+Note: Sensor Pin 4 (RX) can be left floating for continuous
+      ranging mode, or connected to GPIO for triggered mode.
 ```
 
 ### Pins Used Summary
@@ -166,14 +167,14 @@ Pin 22 (GPIO138) ---------->   Pin 4 (RX - Trigger)
 **Sensor 1:**
 - 5V Power: Physical Pin 4
 - Ground: Physical Pin 6
-- PW Input (3.3V): Physical Pin 12 (GPIO4_A4 / chip GPIO 132)
-- RX Trigger Output (3.3V): Physical Pin 16 (GPIO4_B0 / chip GPIO 136)
+- Serial Input (UART4_RX_M0): Physical Pin 16
+- Optional Trigger Output: Pin 11 or 13 (GPIO, if using triggered mode)
 
 **Sensor 2:**
 - 5V Power: Physical Pin 2
 - Ground: Physical Pin 9
-- PW Input (3.3V): Physical Pin 18 (GPIO4_B1 / chip GPIO 137)
-- RX Trigger Output (3.3V): Physical Pin 22 (GPIO4_B2 / chip GPIO 138)
+- Serial Input (UART3_RX_M0): Physical Pin 21
+- Optional Trigger Output: Pin 22 (GPIO, if using triggered mode)
 
 ### Available Unused GPIO Pins
 
@@ -196,10 +197,10 @@ If you need to connect additional sensors or devices, these GPIO pins are availa
 
 ## Serial Output Specifications
 - **Baud Rate**: 9600, 8 data bits, no parity, 1 stop bit (8N1)
-- **Format**: Rxxx\r where xxx is distance in millimeters
-- **Example**: "R1234\r" = 1234mm = 48.6 inches
+- **Format**: Rxxx\r where xxx is distance in centimeters
+- **Example**: "R123\r" = 123cm = 48.4 inches
 - **Update Rate**: ~10 Hz (10 readings per second)
-- **Range Output**: 300mm (12 in) to 7650mm (300 in)
+- **Range Output**: 30cm to 765cm (12 in to 300 in)
 
 ## Triggering
 - RX pin (Pin 4) is internally pulled HIGH
