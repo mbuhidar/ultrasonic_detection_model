@@ -2,6 +2,11 @@
 """
 MaxBotix MB1300AE Ultrasonic Sensor Data Capture - Hardware UART Version
 Using Orange Pi 5 hardware serial ports (UART3 and UART4)
+
+WIRING REQUIREMENTS:
+- Sensor Pin 1 (BW) MUST be connected to 3.3V for ASCII serial output
+- Sensor Pin 5 (TX) connects to Orange Pi UART RX pins
+- If Pin 1 is floating or LOW, sensor outputs binary data instead of ASCII
 """
 
 import serial
@@ -133,6 +138,9 @@ class DualSensorController:
         print("Hardware UART Configuration:")
         print(f"  Sensor 1: {self.sensor1.uart_port} (Pin 16 - UART4_RX_M0)")
         print(f"  Sensor 2: {self.sensor2.uart_port} (Pin 21 - UART3_RX_M0)")
+        print("\nIMPORTANT: Sensor Pin 1 (BW) must be connected to 3.3V!")
+        print("  - Pin 1 HIGH = ASCII serial output (Rxxx\\r format)")
+        print("  - Pin 1 LOW/floating = Binary analog data (not usable)")
         print("="*60 + "\n")
         
         return True

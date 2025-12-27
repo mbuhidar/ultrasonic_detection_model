@@ -122,8 +122,8 @@ For RK3588S GPIO chips:
 
 ### Sensor 1 (MB1300AE #1)
 | MB1300 Pin | Function | Orange Pi 5 Pin | UART/GPIO |
-|------------|----------|-----------------|-----------|
-| Pin 1 (BW) | Leave Open | - | Must be floating for serial |
+|------------|----------|-----------------|-----------||
+| Pin 1 (BW) | Mode Select | Pin 1 or 17 | **3.3V (Required for ASCII serial)** |
 | Pin 2 (AN) | Analog Envelope | - | Not Used (requires ADC) |
 | Pin 3 (AN) | Analog Voltage | - | Not Used (requires ADC) |
 | Pin 4 (RX) | Trigger Input | Pin 11 or 13 | GPIO (optional) |
@@ -133,8 +133,8 @@ For RK3588S GPIO chips:
 
 ### Sensor 2 (MB1300AE #2)
 | MB1300 Pin | Function | Orange Pi 5 Pin | UART/GPIO |
-|------------|----------|-----------------|-----------|
-| Pin 1 (BW) | Leave Open | - | Must be floating for serial |
+|------------|----------|-----------------|-----------||
+| Pin 1 (BW) | Mode Select | Pin 1 or 17 | **3.3V (Required for ASCII serial)** |
 | Pin 2 (AN) | Analog Envelope | - | Not Used (requires ADC) |
 | Pin 3 (AN) | Analog Voltage | - | Not Used (requires ADC) |
 | Pin 4 (RX) | Trigger Input | Pin 22 | GPIO (optional) |
@@ -146,31 +146,33 @@ For RK3588S GPIO chips:
 ```
 Orange Pi 5                    MaxBotix MB1300AE Sensor 1
 -----------                    --------------------------
+Pin 1  (3.3V)     ---------->  Pin 1 (BW - Mode Select)
 Pin 4  (5V)       ---------->  Pin 6 (+5V)
 Pin 6  (GND)      ---------->  Pin 7 (GND)
 Pin 16 (UART4_RX) <----------  Pin 5 (TX - Serial Out)
-Pin 1 (BW)        ---------->  LEAVE OPEN (not connected)
 
 Orange Pi 5                    MaxBotix MB1300AE Sensor 2
 -----------                    --------------------------
+Pin 17 (3.3V)     ---------->  Pin 1 (BW - Mode Select)
 Pin 2  (5V)       ---------->  Pin 6 (+5V)
 Pin 9  (GND)      ---------->  Pin 7 (GND)
 Pin 21 (UART3_RX) <----------  Pin 5 (TX - Serial Out)
-Pin 1 (BW)        ---------->  LEAVE OPEN (not connected)
 
-Note: Sensor Pin 4 (RX) can be left floating for continuous
-      ranging mode, or connected to GPIO for triggered mode.
+Note: Both sensors' Pin 1 (BW) can share Orange Pi Pin 1 (3.3V) if needed.
+      Sensor Pin 4 (RX) can be left floating for continuous ranging mode.
 ```
 
 ### Pins Used Summary
 
 **Sensor 1:**
+- 3.3V (BW Mode): Physical Pin 1 or 17
 - 5V Power: Physical Pin 4
 - Ground: Physical Pin 6
 - Serial Input (UART4_RX_M0): Physical Pin 16
 - Optional Trigger Output: Pin 11 or 13 (GPIO, if using triggered mode)
 
 **Sensor 2:**
+- 3.3V (BW Mode): Physical Pin 1 or 17 (can share with Sensor 1)
 - 5V Power: Physical Pin 2
 - Ground: Physical Pin 9
 - Serial Input (UART3_RX_M0): Physical Pin 21

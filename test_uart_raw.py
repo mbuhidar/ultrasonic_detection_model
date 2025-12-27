@@ -57,7 +57,7 @@ def test_uart(port, name):
         if byte_count == 0:
             print(f"\n⚠ NO DATA RECEIVED!")
             print(f"  Possible causes:")
-            print(f"  1. Sensor Pin 1 (BW) is grounded - must be OPEN/floating")
+            print(f"  1. Sensor Pin 1 (BW) not connected HIGH - must be 3.3V or 5V")
             print(f"  2. Sensor Pin 5 (TX) not connected to Orange Pi")
             print(f"  3. Sensor not powered (Pin 6 to 5V, Pin 7 to GND)")
             print(f"  4. Wrong UART port mapping")
@@ -81,8 +81,9 @@ def main():
     test_uart("/dev/ttyS3", "Sensor 2 (Pin 21 - UART3)")
     
     print("\n" + "="*60)
-    print("IMPORTANT: Sensor Pin 1 (BW) MUST be left open (not connected)")
-    print("           If Pin 1 is connected to ground, serial output is disabled!")
+    print("IMPORTANT: Sensor Pin 1 (BW) MUST be connected to 3.3V or 5V")
+    print("           Pin 1 HIGH = ASCII serial output on Pin 5")
+    print("           Pin 1 LOW/floating = Binary analog output (not ASCII)")
     print("="*60)
 
 if __name__ == "__main__":
